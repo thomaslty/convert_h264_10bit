@@ -55,7 +55,7 @@ find "$INPUT_DIR" -type f -name "*.mp4" -print0 | while IFS= read -r -d '' file;
         [ -f "$reencode_path" ] && rm "$reencode_path"
 
         # Convert using ffmpeg
-        if ffmpeg -v error -stats -i "$file" -c:v libx264 -pix_fmt yuv420p -c:a aac "$reencode_path"; then
+        if ffmpeg -y -nostdin -v error -stats -i "$file" -c:v libx264 -pix_fmt yuv420p -c:a aac "$reencode_path"; then
             # Conversion successful
 
             # Create backup of original file
