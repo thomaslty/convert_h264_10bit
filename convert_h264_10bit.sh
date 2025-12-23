@@ -14,18 +14,17 @@ OUTPUT_DIR="${2:-$(pwd)}"
 # Ensure output directory exists
 mkdir -p "$OUTPUT_DIR"
 
-# Report file
-REPORT_FILE="$OUTPUT_DIR/conversion_report.txt"
-> "$REPORT_FILE"
+# Log files - delete existing ones if they exist
+SUCCESS_LOG="$OUTPUT_DIR/success.log"
+FAILED_LOG="$OUTPUT_DIR/failed.error"
+[ -f "$SUCCESS_LOG" ] && rm "$SUCCESS_LOG"
+[ -f "$FAILED_LOG" ] && rm "$FAILED_LOG"
 
 echo "Converting H.264 10-bit files from: $INPUT_DIR"
 echo "Temporary files in: $OUTPUT_DIR"
-echo "Report will be saved to: $REPORT_FILE"
+echo "Success log: $SUCCESS_LOG"
+echo "Failed/error log: $FAILED_LOG"
 echo "------------------------------------------------"
-
-# Initialize report sections
-SUCCESSFUL_CONVERSIONS=""
-OTHER_RESULTS=""
 
 # Find .mp4 files recursively
 find "$INPUT_DIR" -type f -name "*.mp4" -print0 | while IFS= read -r -d '' file; do
@@ -40,7 +39,7 @@ find "$INPUT_DIR" -type f -name "*.mp4" -print0 | while IFS= read -r -d '' file;
         # ERROR CASE: ffprobe failed to read the file
         msg="ERROR (Unreadable): $file"
         echo "$msg"
-        OTHER_RESULTS="${OTHER_RESULTS}$msg\n"
+        echo "$msg" >> "$FAILED_LOG"
 
     elif [[ "$metadata" == *"h264"* ]] && [[ "$metadata" == *"10"* ]]; then
         # FOUND H.264 10-bit file - attempt conversion
@@ -63,62 +62,38 @@ find "$INPUT_DIR" -type f -name "*.mp4" -print0 | while IFS= read -r -d '' file;
             if mv "$file" "$backup_file"; then
                 # Copy reencoded file to original location
                 if cp "$reencode_path" "$file"; then
-                    msg="SUCCESS: $file -> converted and replaced (backup: $backup_file)"
+                    # Remove the backup file after successful copy
+                    rm "$backup_file"
+                    msg="SUCCESS: $file -> converted and replaced"
                     echo "$msg"
-                    SUCCESSFUL_CONVERSIONS="${SUCCESSFUL_CONVERSIONS}$msg\n"
+                    echo "$msg" >> "$SUCCESS_LOG"
                 else
                     # Failed to copy back, restore original
                     mv "$backup_file" "$file"
                     msg="ERROR (Copy failed): $file - restored from backup"
                     echo "$msg"
-                    OTHER_RESULTS="${OTHER_RESULTS}$msg\n"
+                    echo "$msg" >> "$FAILED_LOG"
                 fi
             else
                 msg="ERROR (Backup failed): $file - could not create backup"
                 echo "$msg"
-                OTHER_RESULTS="${OTHER_RESULTS}$msg\n"
+                echo "$msg" >> "$FAILED_LOG"
             fi
         else
             # Conversion failed
             msg="ERROR (Conversion failed): $file"
             echo "$msg"
-            OTHER_RESULTS="${OTHER_RESULTS}$msg\n"
+            echo "$msg" >> "$FAILED_LOG"
         fi
     else
         # Not H.264 10-bit - skip
         msg="SKIPPED (Not H.264 10-bit): $file"
         echo "$msg"
-        OTHER_RESULTS="${OTHER_RESULTS}$msg\n"
+        echo "$msg" >> "$FAILED_LOG"
     fi
 done
 
 echo "------------------------------------------------"
 echo "Conversion complete."
-
-# Write report
-{
-    echo "CONVERSION REPORT"
-    echo "Generated on: $(date)"
-    echo "Input directory: $INPUT_DIR"
-    echo "Output directory: $OUTPUT_DIR"
-    echo ""
-    echo "=================================================="
-    echo "SECTION A: SUCCESSFUL CONVERSIONS"
-    echo "=================================================="
-    if [ -n "$SUCCESSFUL_CONVERSIONS" ]; then
-        printf "$SUCCESSFUL_CONVERSIONS"
-    else
-        echo "No successful conversions."
-    fi
-    echo ""
-    echo "=================================================="
-    echo "SECTION B: OTHER RESULTS (Errors, Skipped, Failed)"
-    echo "=================================================="
-    if [ -n "$OTHER_RESULTS" ]; then
-        printf "$OTHER_RESULTS"
-    else
-        echo "No other results."
-    fi
-} > "$REPORT_FILE"
-
-echo "Report saved to: $REPORT_FILE"
+echo "Success log: $SUCCESS_LOG"
+echo "Failed/error log: $FAILED_LOG"
