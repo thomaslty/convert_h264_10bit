@@ -17,13 +17,16 @@ mkdir -p "$OUTPUT_DIR"
 # Log files - delete existing ones if they exist
 SUCCESS_LOG="$OUTPUT_DIR/success.log"
 FAILED_LOG="$OUTPUT_DIR/failed.error"
+SKIPPED_LOG="$OUTPUT_DIR/skipped.log"
 [ -f "$SUCCESS_LOG" ] && rm "$SUCCESS_LOG"
 [ -f "$FAILED_LOG" ] && rm "$FAILED_LOG"
+[ -f "$SKIPPED_LOG" ] && rm "$SKIPPED_LOG"
 
 echo "Converting H.264 10-bit files from: $INPUT_DIR"
 echo "Temporary files in: $OUTPUT_DIR"
 echo "Success log: $SUCCESS_LOG"
 echo "Failed/error log: $FAILED_LOG"
+echo "Skipped log: $SKIPPED_LOG"
 echo "------------------------------------------------"
 
 # Find .mp4 files recursively
@@ -89,7 +92,7 @@ find "$INPUT_DIR" -type f -name "*.mp4" -print0 | while IFS= read -r -d '' file;
         # Not H.264 10-bit - skip
         msg="SKIPPED (Not H.264 10-bit): $file"
         echo "$msg"
-        echo "$msg" >> "$FAILED_LOG"
+        echo "$msg" >> "$SKIPPED_LOG"
     fi
 done
 
@@ -97,3 +100,4 @@ echo "------------------------------------------------"
 echo "Conversion complete."
 echo "Success log: $SUCCESS_LOG"
 echo "Failed/error log: $FAILED_LOG"
+echo "Skipped log: $SKIPPED_LOG"
